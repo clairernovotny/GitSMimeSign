@@ -127,8 +127,10 @@ namespace GitSMimeSign.Actions
         /// <param name="bytes">The bytes to verify.</param>
         internal static void VerifyAttached(byte[] bytes)
         {
-            PemHelper.TryDecode(bytes, out var body);
-            VerifySignedData(new SignedCms(), body);
+            if (PemHelper.TryDecode(bytes, out var body))
+            {
+                VerifySignedData(new SignedCms(), body);
+            }
         }
 
         /// <summary>
@@ -158,8 +160,10 @@ namespace GitSMimeSign.Actions
             // Create a new, detached SignedCms message.
             var signedCms = new SignedCms(contentInfo, true);
 
-            PemHelper.TryDecode(signatureBytes, out var signatureBody);
-            VerifySignedData(signedCms, signatureBody, verifySignatureOnly);
+            if (PemHelper.TryDecode(signatureBytes, out var signatureBody))
+            {
+                VerifySignedData(signedCms, signatureBody, verifySignatureOnly);
+            }
         }
 
         /// <summary>

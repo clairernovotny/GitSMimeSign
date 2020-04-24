@@ -33,13 +33,13 @@ namespace GitSMimeSigner.Tests
         public async Task TestSignAndVerifyPemDetached()
         {
             var (outputStream, gpgStream) = GetOutputStreams();
-            var certificate = Generate();
+            using var certificate = Generate();
             var bytes = Encoding.UTF8.GetBytes("Hello World");
             var result = await SignAction.PerformSign(certificate, bytes, null, true, true, X509IncludeOption.WholeChain).ConfigureAwait(false);
 
             Assert.Equal(0, result);
 
-            var output = GetStreamContents(outputStream).Replace("\r\n", string.Empty).Replace("\n", string.Empty).Replace("\r", string.Empty);
+            var output = GetStreamContents(outputStream).Replace("\r\n", string.Empty, StringComparison.OrdinalIgnoreCase).Replace("\n", string.Empty, StringComparison.OrdinalIgnoreCase).Replace("\r", string.Empty, StringComparison.OrdinalIgnoreCase);
             var gpg = GetStreamContents(gpgStream);
             output.ShouldBe("[GitSMimeSign:] Finished signing");
             gpg.ShouldNotBeEmpty();
