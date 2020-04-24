@@ -27,7 +27,8 @@ namespace GitSMimeSign.Timestamper
         /// <param name="signerInfo">The signer information to check.</param>
         /// <param name="notBefore">The date time the signing information must be at or after.</param>
         /// <param name="notAfter">The date time the signing information must be at or before.</param>
+        /// <param name="timeStamp">The date time of the time stamp.</param>
         /// <returns>If the RFC3161 is valid.</returns>
-        bool? CheckRFC3161Timestamp(SignerInfo signerInfo, DateTimeOffset? notBefore, DateTimeOffset? notAfter);
+        bool? CheckRFC3161Timestamp(SignerInfo signerInfo, DateTimeOffset? notBefore, DateTimeOffset? notAfter, out DateTimeOffset? timeStamp);
     }
 }

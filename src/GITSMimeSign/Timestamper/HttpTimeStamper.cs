@@ -91,15 +91,16 @@ namespace GitSMimeSign.Timestamper
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool? CheckRFC3161Timestamp(SignerInfo signerInfo, DateTimeOffset? notBefore, DateTimeOffset? notAfter)
+        public bool? CheckRFC3161Timestamp(SignerInfo signerInfo, DateTimeOffset? notBefore, DateTimeOffset? notAfter, out DateTimeOffset? timeStamp)
         {
-            return CheckRFC3161TimestampInternal(signerInfo, notBefore, notAfter);
+            return CheckRFC3161TimestampInternal(signerInfo, notBefore, notAfter, out timeStamp);
         }
 
-        internal static bool? CheckRFC3161TimestampInternal(SignerInfo signerInfo, DateTimeOffset? notBefore, DateTimeOffset? notAfter)
+        internal static bool? CheckRFC3161TimestampInternal(SignerInfo signerInfo, DateTimeOffset? notBefore, DateTimeOffset? notAfter, out DateTimeOffset? timeStamp)
         {
             bool found = false;
             byte[] signatureBytes = null;
+            timeStamp = null;
 
             foreach (CryptographicAttributeObject attr in signerInfo.UnsignedAttributes)
             {
@@ -149,6 +150,7 @@ namespace GitSMimeSign.Timestamper
                         }
 
                         found = true;
+                        timeStamp = token.TokenInfo.Timestamp;
                     }
                 }
             }

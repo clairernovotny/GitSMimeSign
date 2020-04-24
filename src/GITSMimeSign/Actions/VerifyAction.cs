@@ -152,8 +152,7 @@ namespace GitSMimeSign.Actions
         /// </summary>
         /// <param name="signatureBytes">The signature bytes to verify.</param>
         /// <param name="signedDataBytes">The data bytes to verify.</param>
-        /// <param name="verifySignatureOnly">If we should verify the signature only. Useful for testing only.</param>
-        internal static void VerifyDetached(byte[] signatureBytes, byte[] signedDataBytes, bool verifySignatureOnly = false)
+        internal static void VerifyDetached(byte[] signatureBytes, byte[] signedDataBytes)
         {
             var contentInfo = new ContentInfo(signedDataBytes);
 
@@ -162,7 +161,7 @@ namespace GitSMimeSign.Actions
 
             if (PemHelper.TryDecode(signatureBytes, out var signatureBody))
             {
-                VerifySignedData(signedCms, signatureBody, verifySignatureOnly);
+                VerifySignedData(signedCms, signatureBody);
             }
         }
 
@@ -171,14 +170,11 @@ namespace GitSMimeSign.Actions
         /// </summary>
         /// <param name="signedCms">The signed CMS which we will validate.</param>
         /// <param name="body">The bytes we want to validate against.</param>
-        /// <param name="verifySignatureOnly">If we should verify the signature only. Useful for testing only.</param>
-        internal static void VerifySignedData(SignedCms signedCms, byte[] body, bool verifySignatureOnly = false)
+        internal static void VerifySignedData(SignedCms signedCms, byte[] body)
         {
             try
             {
                 signedCms.Decode(body);
-
-                signedCms.CheckSignature(verifySignatureOnly);
 
                 if (signedCms.SignerInfos.Count == 0)
                 {
@@ -187,16 +183,26 @@ namespace GitSMimeSign.Actions
 
                 var issuedCertificate = signedCms.SignerInfos[0].Certificate;
 
+                DateTimeOffset? timeStamp = null;
                 foreach (var signedInfo in signedCms.SignerInfos)
                 {
-                    if (TimeStamper.CheckRFC3161Timestamp(signedInfo, issuedCertificate.NotBefore, issuedCertificate.NotAfter) == false)
+                    if (TimeStamper.CheckRFC3161Timestamp(signedInfo, issuedCertificate.NotBefore, issuedCertificate.NotAfter, out timeStamp) == false)
                     {
                         throw new SignClientException(Resources.InvalidTimestamp);
                     }
                 }
 
+                if (timeStamp == null)
+                {
+                    signedCms.CheckSignature(false);
+                }
+                else
+                {
+                    signedCms.CheckSignature(true);
+                }
+
                 WriteGpgCertificateData(true, signedCms.Certificates);
-                WriteSigningInformation(issuedCertificate, true, signedCms);
+                WriteSigningInformation(issuedCertificate, true, signedCms, timeStamp);
 
                 GpgOutputHelper.WriteLine($"{FullyTrusted} 0 shell"); // This indicates we fully trust using the x509 model.
             }
@@ -210,7 +216,7 @@ namespace GitSMimeSign.Actions
                 {
                     var issuedCertificate = signedCms.SignerInfos[0].Certificate;
                     WriteGpgCertificateData(false, signedCms.Certificates);
-                    WriteSigningInformation(issuedCertificate, false, signedCms);
+                    WriteSigningInformation(issuedCertificate, false, signedCms, null);
                 }
 
                 throw;
@@ -237,7 +243,8 @@ namespace GitSMimeSign.Actions
         /// <param name="issuedCertificate">The issued certificate.</param>
         /// <param name="goodSignature">If this is a good signature or not.</param>
         /// <param name="signedCms">The information about the signing.</param>
-        private static void WriteSigningInformation(X509Certificate2 issuedCertificate, bool goodSignature, SignedCms signedCms)
+        /// <param name="timeStamp">The time stamp.</param>
+        private static void WriteSigningInformation(X509Certificate2 issuedCertificate, bool goodSignature, SignedCms signedCms, DateTimeOffset? timeStamp)
         {
             InfoOutputHelper.WriteLine($"Signature made using certificate ID 0x{issuedCertificate.Thumbprint}");
 
@@ -250,6 +257,11 @@ namespace GitSMimeSign.Actions
                         InfoOutputHelper.WriteLine($"Signature made at {signingTime.SigningTime.ToString("O", CultureInfo.InvariantCulture)}");
                     }
                 }
+            }
+
+            if (timeStamp != null)
+            {
+                InfoOutputHelper.WriteLine($"Signature time stampped at {timeStamp.Value.ToString("O", CultureInfo.InvariantCulture)}");
             }
 
             InfoOutputHelper.WriteLine($"Signature issued by '{issuedCertificate.Issuer}'");
